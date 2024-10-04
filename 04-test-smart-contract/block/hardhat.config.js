@@ -1,4 +1,7 @@
 const fs = require("fs");
+require("@nomiclabs/hardhat-waffle");
+require("@nomiclabs/hardhat-ethers");
+
 
 // Read the mnemonic from the .secret file
 const MNEMONIC = fs.readFileSync(".secret").toString().trim();
@@ -10,7 +13,7 @@ if (!MNEMONIC
 }
 
 const rskTestNetBlockResponse = fs
-  .readFileSync('.rsk-testnet-block-rpc-response.js')
+  .readFileSync('.rsk-testnet-block-rpc-response.json')
   .toString()
   .trim();
 const rskTestnetMinimumGasPrice = parseInt(

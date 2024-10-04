@@ -20,7 +20,7 @@ describe('OneMilNftPixels - update pixel by owner - failure', () => {
   const transferAndCallSignature = 'transferAndCall(address,uint256,bytes)';
   const tokenAmount = 10;
 
-  /* ___ */(/* ___ */ () => {
+  before(async () => {
     [deployAcct] = await ethers.getSigners();
     lunaToken = await deployContract('LunaToken', tokensTotalSupply);
     oneMilNftPixels = await deployContract(
@@ -53,7 +53,7 @@ describe('OneMilNftPixels - update pixel by owner - failure', () => {
 
   it('should not allow deployer to update pixel without payment', async () => {
     const zeroTokens = 0;
-    const sigHash = oneMilNftPixels.interface.getSighash('update');
+    const sigHash = oneMilNftPixels.interface.getSighash('updatePixel');
     const callData = ethers.utils.defaultAbiCoder.encode(
       ['bytes4', 'address', 'uint24', 'bytes3', 'uint256'],
       [sigHash, deployAcct.address, pixel1001Id, pixelYellowColor, zeroTokens],
@@ -70,7 +70,7 @@ describe('OneMilNftPixels - update pixel by owner - failure', () => {
 
   it('should not allow deployer to update pixel with low payment', async () => {
     const lowTokenAmount = 5;
-    const sigHash = oneMilNftPixels.interface.getSighash('update');
+    const sigHash = oneMilNftPixels.interface.getSighash('updatePixel');
     const callData = ethers.utils.defaultAbiCoder.encode(
       ['bytes4', 'address', 'uint24', 'bytes3', 'uint256'],
       [

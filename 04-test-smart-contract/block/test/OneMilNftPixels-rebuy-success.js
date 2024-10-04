@@ -101,8 +101,8 @@ describe('OneMilNftPixels - re-buy pixel - success', () => {
     expect(pixel1001.price).to.equal(newPixel1001Price);
   });
 
-  it('should have update owner of pixel 1001 after purchase', /* ___ */ () => {
-    expect(/* ___ */ oneMilNftPixels.ownerOf(pixel1001Id)).to.equal(
+  it('should have update owner of pixel 1001 after purchase', async () => {
+    expect(await oneMilNftPixels.ownerOf(pixel1001Id)).to.equal(
       buyer1Acct.address,
     );
   });

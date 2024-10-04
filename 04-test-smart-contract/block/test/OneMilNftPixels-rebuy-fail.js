@@ -95,8 +95,6 @@ describe('OneMilNftPixels - re-buy pixel - failure', () => {
   });
 
   it('should not have increased balance of contract after failed buy attempts', async () => {
-    expect(await lunaToken.balanceOf(oneMilNftPixels.address)).to.equal(
-      /* ___ */
-    );
+    expect(await lunaToken.balanceOf(oneMilNftPixels.address)).to.equal(tokenAmount);
   });
 });

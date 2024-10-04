@@ -56,7 +56,7 @@ describe('OneMilNftPixels - buy pixel - success', () => {
   });
 
   it('should have set the price of pixel 1001 after buy', async () => {
-    /* __________ */
+    const pixel1001 = await oneMilNftPixels.pixels(pixel1001Id);
     expect(pixel1001.price).to.equal(tokenAmount);
   });
 

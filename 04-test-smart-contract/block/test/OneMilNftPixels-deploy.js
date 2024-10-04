@@ -41,25 +41,25 @@ describe('OneMilNftPixels - upon deployment', () => {
   });
 
   it('should have no owner for pixel #0', async () => {
-    await expect(oneMilNftPixels.ownerOf(0)).to.be.revertedWith(
-      'ERC721: invalid token ID',
-    );
+    await expect(oneMilNftPixels.ownerOf(0)).to.be.revertedWith('ERC721: invalid token ID');
   });
+
 
   it('should have Luna token as an accepted token', async () => {
     expect(await oneMilNftPixels.acceptedToken()).to.equal(lunaToken.address);
   });
 
-  /* ___ */('should NOT accept direct RBTC transfers', async () => {
+  it('should NOT accept direct RBTC transfers', async () => {
     const txData = {
       to: oneMilNftPixels.address,
       value: 9999,
     };
     const tx = deployAcct.sendTransaction(txData).then((res) => res.wait());
-    await /* ___ */(tx).to.be./* ___ */(
-      'Accepts purchases in Luna tokens only',
+    await expect(tx).to.be.revertedWith(
+      'Accepts purchases in Luna tokens only' // This should remain
     );
   });
+
 
   it('should fallback on an unknown function', async () => {
     const oneMilNftPixelsWithNonExistentFunction = new ethers.Contract(

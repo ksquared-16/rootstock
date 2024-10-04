@@ -54,7 +54,7 @@ describe('OneMilNftPixels - update pixel by owner - success', () => {
   });
 
   it('should allow deployer to update pixel', async () => {
-    const sigHash = oneMilNftPixels.interface.getSighash('update');
+    const sigHash = oneMilNftPixels.interface.getSighash('updatePixel');
     const callData = ethers.utils.defaultAbiCoder.encode(
       ['bytes4', 'address', 'uint24', 'bytes3', 'uint256'],
       [sigHash, deployAcct.address, pixel1001Id, pixelYellowColor, updatePrice],
@@ -78,8 +78,7 @@ describe('OneMilNftPixels - update pixel by owner - success', () => {
   });
 
   it('should maintain the same owner of pixel 1001 after update', async () => {
-    /* __________ */
-    /* __________ */
+    expect(await oneMilNftPixels.ownerOf(pixel1001Id)).to.equal(deployAcct.address);
   });
 
   it('should have increased balance of contract after update', async () => {

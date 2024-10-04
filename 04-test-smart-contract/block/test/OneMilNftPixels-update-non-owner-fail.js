@@ -15,7 +15,7 @@ describe('OneMilNftPixels - update pixel by non-owner - failure', () => {
   let oneMilNftPixels;
 
   const pixel1001Id = 1001;
-  const pixelDefaultColour = '0xff00ff';
+  const pixelDefaultColour = '0x000000';
   const pixelYellowColor = '0xffff0a';
   const tokensTotalSupply = 1e7;
   const transferAndCallSignature = 'transferAndCall(address,uint256,bytes)';
@@ -55,13 +55,12 @@ describe('OneMilNftPixels - update pixel by non-owner - failure', () => {
       callData,
     ).then((res) => res.wait());
     expect(await oneMilNftPixels.ownerOf(pixel1001Id)).to.equal(
-      deployAcct.address,
-    );
+      deployAcct.address);
   });
 
   it('should not allow deployer to update unowned pixel', async () => {
     const unownedPixelId = 1002;
-    const sigHash = oneMilNftPixels.interface.getSighash('update');
+    const sigHash = oneMilNftPixels.interface.getSighash('updatePixel');
     const callData = ethers.utils.defaultAbiCoder.encode(
       ['bytes4', 'address', 'uint24', 'bytes3', 'uint256'],
       [
@@ -81,18 +80,18 @@ describe('OneMilNftPixels - update pixel by non-owner - failure', () => {
   });
 
   it('should not allow buyers to update pixel 1001 that they do not own', async () => {
-    const sigHash = oneMilNftPixels.interface.getSighash('update');
+    const sigHash = oneMilNftPixels.interface.getSighash('updatePixel');
     const callData = ethers.utils.defaultAbiCoder.encode(
       ['bytes4', 'address', 'uint24', 'bytes3', 'uint256'],
       [sigHash, buyerAcct.address, pixel1001Id, pixelYellowColor, updatePrice],
     );
     const tx = lunaToken
       .connect(buyerAcct)
-      [transferAndCallSignature](
-        oneMilNftPixels.address,
-        updatePrice,
-        callData,
-      );
+    [transferAndCallSignature](
+      oneMilNftPixels.address,
+      updatePrice,
+      callData,
+    );
     await expect(tx).to.be.reverted;
   });
 
@@ -103,12 +102,10 @@ describe('OneMilNftPixels - update pixel by non-owner - failure', () => {
 
   it('should maintain the previous price of pixel 1001 after failed update attempt', async () => {
     const pixel = await oneMilNftPixels.pixels(pixel1001Id);
-    /* ___ */(/* ___ */.price)./* ___ */./* ___ */(pixelPrice);
+    expect(pixel.price).to.equal(pixelPrice);
   });
 
   it('should maintain the previous owner of pixel 1001 after failed update attempt', async () => {
-    expect(await oneMilNftPixels.ownerOf(pixel1001Id)).to.equal(
-      deployAcct.address,
-    );
+    expect(await oneMilNftPixels.ownerOf(pixel1001Id)).to.equal(deployAcct.address);
   });
 });

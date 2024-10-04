@@ -178,8 +178,8 @@ describe('OneMilNftPixels - buy pixel - failure', () => {
   });
 
   it('Meow token balance should not change after failed buy attempt', async () => {
-    /* __________ */
-    /* __________ */
+    expect(await meowToken.balanceOf(deployAcct.address)).to.equal(tokensTotalSupply);
+    expect(await meowToken.balanceOf(oneMilNftPixels.address)).to.equal(0);
   });
 
   it('Purr token balance should not change after failed buy attempt', async () => {

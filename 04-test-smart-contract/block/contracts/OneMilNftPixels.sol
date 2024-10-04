@@ -17,7 +17,10 @@ contract OneMilNftPixels is ERC721, Ownable, IERC1363Receiver {
      * Compensations are withdrawn from the accepted token OneMilNftPixels balance
      */
     mapping(address => uint256) public compensationBalances;
-    struct Pixel {} /* TODO (3) define struct */
+    struct Pixel {
+        bytes3 colour;
+        uint256 price;
+    }
     Pixel[1_000_000] public pixels;
 
     /**
@@ -28,7 +31,8 @@ contract OneMilNftPixels is ERC721, Ownable, IERC1363Receiver {
     /**
      * @dev Emitted when the owner of a pixel updates it
      */
-   /* TODO (4) define event */
+
+    event Update(uint24 indexed tokenId);
 
     /**
      * @dev Emitted when the contract owner performs admin
@@ -36,13 +40,13 @@ contract OneMilNftPixels is ERC721, Ownable, IERC1363Receiver {
     event OwnerAdmin();
 
     /**
-     * @dev Emitted when the `sender` withdraws compensation
+     * @dev Emitted when the sender withdraws compensation
      */
     event WithdrawCompensation(address indexed to, uint256 amount);
 
     /**
-     * @dev Emitted when `amount` tokens are moved from one account (`sender`) to
-     * this by operator (`operator`) using {transferAndCall} or {transferFromAndCall}.
+     * @dev Emitted when amount tokens are moved from one account (sender) to
+     * this by operator (operator) using {transferAndCall} or {transferFromAndCall}.
      */
     event TokensReceived(
         address indexed operator,
@@ -52,8 +56,8 @@ contract OneMilNftPixels is ERC721, Ownable, IERC1363Receiver {
     );
 
     /**
-     * @dev Emitted when the allowance of this for a `sender` is set by
-     * a call to {approveAndCall}. `amount` is the new allowance.
+     * @dev Emitted when the allowance of this for a sender is set by
+     * a call to {approveAndCall}. amount is the new allowance.
      */
     event TokensApproved(address indexed sender, uint256 amount, bytes data);
 
@@ -65,8 +69,8 @@ contract OneMilNftPixels is ERC721, Ownable, IERC1363Receiver {
         _;
     }
 
-    constructor(IERC1363 _acceptedToken)
-        /* TODO (5) call contructors of inherited contracts */
+    constructor(IERC1363 _acceptedToken) ERC721("OneMilNftPixels", "OMP") Ownable()
+           /* TODO (5) call contructors of inherited contracts */
     {
         require(
             address(_acceptedToken) != address(0),
@@ -109,7 +113,7 @@ contract OneMilNftPixels is ERC721, Ownable, IERC1363Receiver {
         require(balance >= compensationBalance, 'Insufficient balance!');
         require(compensationBalance > 0, 'Insufficient compensation balance!');
 
-        // transfer msg.sender's compensation LUNAs to the address specified in `to`. If caller is EOA, call ERC20 transfer()
+        // transfer msg.sender's compensation LUNAs to the address specified in to. If caller is EOA, call ERC20 transfer()
         bool withdrawalSuccess = (_msgSender() == tx.origin)
             ? acceptedToken.transfer(address(to), compensationBalance) // EOA
             : acceptedToken.transferAndCall(address(to), compensationBalance); // SC
@@ -120,61 +124,74 @@ contract OneMilNftPixels is ERC721, Ownable, IERC1363Receiver {
         emit WithdrawCompensation(address(to), compensationBalance);
     }
 
-    /**
-     * @dev Purchase pixel and update its colour.
-     * If pixel is not currently owned, NFT is minted.
-     * If pixel is already owned, NFT is transferred.
-     *
-     * - `id` is the offset of the pixel, where `offset = y * width + x`
-     * - `colour` is an RGB value in hexadecimal,
-     *   e.g. `0xFF00FF` is `rgb(255, 0, 255)` (purple)
-     */
-    /* TODO (6) buy function name and params */
-        public acceptedTokenOnly
-    {
-        Pixel storage pixel = pixels[id];
-        require(
-            /* TODO (8) condition for require */,
-            'should increment on current price'
-        );
-        /* TODO (9) assign value(s) to pixel */
-        if (ERC721._exists(id)) {
-            // purchasing an pixel already in existence
 
-            // compensate the previous owner of the ERC721 token with a small amount of LUNAs
-            compensationBalances[ERC721.ownerOf(id)] += compensation;
 
-            ERC721._transfer(ERC721.ownerOf(id), sender, id);
-        } else {
-            // purchasing a previously untouched pixel
-            ERC721._safeMint(sender, id);
-        }
+     /** @dev Purchase pixel and update its colour.
+ * If pixel is not currently owned, NFT is minted.
+ * If pixel is already owned, NFT is transferred.
+ *
+ * - id is the offset of the pixel, where offset = y * width + x.
+ * - colour is an RGB value in hexadecimal.
+ */
+function buy(
+    address sender,
+    uint24 id,
+    bytes3 colour,
+    uint256 amount
+) public acceptedTokenOnly {
+    Pixel storage pixel = pixels[id];
+
+    // Check if the amount meets the price increment condition
+    require(amount >= pixel.price + minPriceIncrement, 'Insufficient amount');
+
+    if (ERC721._exists(id)) {
+        // If the pixel already exists, transfer the NFT
+        address previousOwner = ERC721.ownerOf(id);
+
+        // Compensate the previous owner
+        compensationBalances[previousOwner] += compensation;
+
+        // Transfer the pixel NFT to the new owner
+        ERC721._transfer(previousOwner, sender, id);
+    } else {
+        // If the pixel is new, mint it for the sender
+        ERC721._safeMint(sender, id);
     }
+
+    // Update the pixel's color and price
+    pixel.colour = colour;
+    pixel.price = amount; // Update the price to the amount paid
+
+    emit Update(id); // Emit an event to signal that the pixel has been updated
+}
 
     /**
      * @dev Purchase pixel and update its colour
      *
-     * - `id` is the offset of the pixel, where `offset = y * width + x`.
-     *   Assuming 1e6 pixels in a square, this is `offset = y * 1000 + x`.
-     * - `colour` is an RGB value in hexadecimal,
-     *   e.g. `0xFF00FF` is `rgb(255, 0, 255)` (purple).
+     * - id is the offset of the pixel, where offset = y * width + x.
+     *   Assuming 1e6 pixels in a square, this is offset = y * 1000 + x.
+     * - colour is an RGB value in hexadecimal,
+     *   e.g. 0xFF00FF is rgb(255, 0, 255) (purple).
      */
-    /* TODO (10) update function name and params */
-        public acceptedTokenOnly
-    {
-        require(
-            /* TODO (12) condition for require */,
-            'should pay update price'
-        );
-        require(
-            ERC721.ownerOf(id) == sender,
-            'only owner allowed'
-        );
-        Pixel storage pixel = pixels[id];
-        /* TODO (13) assign value(s) to pixel */
 
-        /* TODO (14) log an event */
-    }
+function updatePixel(
+    address sender,
+    uint24 id,
+    bytes3 colour,
+    uint256 amount
+) public acceptedTokenOnly {
+    require(ERC721.ownerOf(id) == sender, "Only the owner can update");
+    
+    // Check if the amount paid is less than the update price
+    require(amount >= updatePrice, "Insufficient amount for update");
+
+    // Update the pixel's color
+    Pixel storage pixel = pixels[id];
+    pixel.colour = colour; // Assign the new color
+
+    // Emit an Update event to signal that the pixel has been updated
+    emit Update(id);
+}
 
     function ownerAdmin(
         bool withdraw,
@@ -201,15 +218,15 @@ contract OneMilNftPixels is ERC721, Ownable, IERC1363Receiver {
     /**
      * @notice Handle the receipt of ERC1363 tokens
      * @dev Any ERC1363 smart contract calls this function on the recipient
-     * after a `transfer` or a `transferFrom`. This function MAY throw to revert and reject the
+     * after a transfer or a transferFrom. This function MAY throw to revert and reject the
      * transfer. Return of other than the magic value MUST result in the
      * transaction being reverted.
      * Note: the token contract address is always the message sender.
-     * @param operator address The address which called `transferAndCall` or `transferFromAndCall` function
+     * @param operator address The address which called transferAndCall or transferFromAndCall function
      * @param sender address The address which are token transferred from
      * @param amount uint256 The amount of tokens transferred
      * @param data bytes Additional data with no specified format
-     * @return `bytes4(keccak256("onTransferReceived(address,address,uint256,bytes)"))`
+     * @return bytes4(keccak256("onTransferReceived(address,address,uint256,bytes)"))
      *  unless throwing
      */
     function onTransferReceived(
@@ -228,7 +245,7 @@ contract OneMilNftPixels is ERC721, Ownable, IERC1363Receiver {
     }
 
     /**
-     * @dev Called after validating a `onTransferReceived`.
+     * @dev Called after validating a onTransferReceived.
      * param _sender The address which are token transferred from
      * param _amount The amount of tokens transferred
      * param _data Additional data with no specified format
