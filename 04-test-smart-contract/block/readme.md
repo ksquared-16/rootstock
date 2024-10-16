@@ -52,13 +52,13 @@ subset of the changes made in the
 code assessment of the previous module
 within the updated version of the same smart contract.
 
-- Ensure dependencies are installed
+<!-- - Ensure dependencies are installed
   - Run `npm install` to get the dependencies in
     this new directory too
   - On top of the existing dependencies,
     will need to add a new one too,
     by running the following command:
-    `npm install --save-dev erc-payable-token@4.5.0`
+    `npm install --save-dev erc-payable-token@4.5.0` -->
 - Make the following changes:
   - (3) Define the `Pixel` struct such that it contains `colour` of type `bytes3` and `price` of type `uint256`
   - (4) Define an `Update` event which has a single `tokenId` parameter of type `uint24`; this event should be searchable/ filterable by its sole parameter.
