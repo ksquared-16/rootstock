@@ -1,9 +1,25 @@
-node_modules
-.env
-coverage
-coverage.json
-typechain
+# Ignore node_modules folder
+node_modules/
 
-#Hardhat files
-cache
-artifacts
+# Ignore environment variable files
+.env
+.secret
+.rsk-testnet-seed-phrase
+
+# Ignore build artifacts and cache directories
+artifacts/
+cache/
+build/
+
+# Ignore temporary files
+*.log
+*.tmp
+
+# Ignore system-specific files
+.DS_Store
+Thumbs.db
+
+# Ignore IDE/editor specific files
+.vscode/
+.idea/
+*.suo
