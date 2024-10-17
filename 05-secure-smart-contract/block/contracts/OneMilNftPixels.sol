@@ -1,0 +1,312 @@
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.8.0 <0.9.0;
+
+import 'hardhat/console.sol';
+import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
+import '@openzeppelin/contracts/access/Ownable.sol';
+import 'erc-payable-token/contracts/token/ERC1363/IERC1363.sol';
+import 'erc-payable-token/contracts/token/ERC1363/IERC1363Receiver.sol';
+
+contract OneMilNftPixels is ERC721, Ownable, IERC1363Receiver {
+    uint256 public minPriceIncrement;
+    uint256 public updatePrice;
+    uint256 public compensation;
+    uint256 public maxGasPrice = 10000000000; // 10 Gwei as an example
+
+
+    /**
+     * @dev Compensations paid to pixels' former owners, when they are bought over.
+     * Compensations are withdrawn from the accepted token OneMilNftPixels balance
+     */
+    mapping(address => uint256) public compensationBalances;
+    struct Pixel {
+        bytes3 colour;
+        uint256 price;
+    }
+    Pixel[1_000_000] public pixels;
+
+    /**
+     * @dev The ERC1363 token accepted
+     */
+    IERC1363 public acceptedToken;
+
+    /**
+     * @dev Emitted when the owner of a pixel updates it
+     */
+
+    event Update(uint24 indexed tokenId);
+
+    /**
+     * @dev Emitted when the contract owner performs admin
+     */
+    event OwnerAdmin();
+
+    /**
+     * @dev Emitted when the sender withdraws compensation
+     */
+    event WithdrawCompensation(address indexed to, uint256 amount);
+
+    /**
+     * @dev Emitted when amount tokens are moved from one account (sender) to
+     * this by operator (operator) using {transferAndCall} or {transferFromAndCall}.
+     */
+    event TokensReceived(
+        address indexed operator,
+        address indexed sender,
+        uint256 amount,
+        bytes data
+    );
+
+    event TransferReceived(address indexed sender, uint24 indexed pixelId, uint256 amount);
+
+
+    /**
+     * @dev Emitted when the allowance of this for a sender is set by
+     * a call to {approveAndCall}. amount is the new allowance.
+     */
+    event TokensApproved(address indexed sender, uint256 amount, bytes data);
+
+    modifier acceptedTokenOnly() {
+        require(
+            _msgSender() == address(acceptedToken),
+            'ERC1363Payable: accepts purchases in Lunas only'
+        );
+        _;
+    }
+
+    constructor(IERC1363 _acceptedToken) ERC721("OneMilNftPixels", "OMP") Ownable()
+           /* TODO (5) call contructors of inherited contracts */
+    {
+        require(
+            address(_acceptedToken) != address(0),
+            'ERC1363Payable: acceptedToken is zero address'
+        );
+        require(
+            _acceptedToken.supportsInterface(type(IERC1363).interfaceId),
+            "Your token doesn't support ERC1363"
+        );
+        acceptedToken = _acceptedToken;
+
+        minPriceIncrement = 10;
+        updatePrice = 10;
+        compensation = 10;
+    }
+
+    /**
+     * @dev See {IERC165-supportsInterface}.
+     */
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC721)
+        returns (bool)
+    {
+        return
+            interfaceId == type(IERC1363Receiver).interfaceId ||
+            super.supportsInterface(interfaceId);
+    }
+
+    /**
+     * @dev Allow withdrawal of compensations to a specified address.
+     * If the balance of the NFT contract is 0 or msg.sender has 0 compensation balance, call will revert.
+     */
+    function withdrawCompensation(IERC1363Receiver to) public {
+        require(tx.gasprice <= maxGasPrice, "Gas price exceeds the limit"); // Gas price check
+        uint256 balance = IERC1363(acceptedToken).balanceOf(address(this));
+        uint256 compensationBalance = compensationBalances[_msgSender()];
+
+        // check if there are sufficient funds in the compensation balance
+        require(balance >= compensationBalance, 'Insufficient balance!');
+        require(compensationBalance > 0, 'Insufficient compensation balance!');
+
+        // SECURITY HINT: modify this
+        compensationBalances[_msgSender()] = 0;
+
+        // transfer msg.sender's compensation LUNAs to the address specified in to. If caller is EOA, call ERC20 transfer()
+        bool withdrawalSuccess = (_msgSender() == tx.origin)
+            ? acceptedToken.transfer(address(to), compensationBalance) // EOA
+            : acceptedToken.transferAndCall(address(to), compensationBalance); // SC
+        require(withdrawalSuccess, 'withdraw failed');
+
+        emit WithdrawCompensation(address(to), compensationBalance);
+    }
+
+
+
+     /** @dev Purchase pixel and update its colour.
+ * If pixel is not currently owned, NFT is minted.
+ * If pixel is already owned, NFT is transferred.
+ *
+ * - id is the offset of the pixel, where offset = y * width + x.
+ * - colour is an RGB value in hexadecimal.
+ */
+function buy(
+    address sender,
+    uint24 id,
+    bytes3 colour,
+    uint256 amount
+) public acceptedTokenOnly {
+    require(tx.gasprice <= maxGasPrice, "Gas price exceeds the limit"); // Gas price check
+    Pixel storage pixel = pixels[id];
+
+    // Check if the amount meets the price increment condition
+    require(amount >= pixel.price + minPriceIncrement, 'Stop fooling me! Are you going to pay?');
+
+    if (ERC721._exists(id)) {
+        // If the pixel already exists, transfer the NFT
+        address previousOwner = ERC721.ownerOf(id);
+
+        // Compensate the previous owner
+        compensationBalances[previousOwner] += compensation;
+
+        // Transfer the pixel NFT to the new owner
+        ERC721._transfer(previousOwner, sender, id);
+    } else {
+        // If the pixel is new, mint it for the sender
+        ERC721._safeMint(sender, id);
+    }
+
+    // Update the pixel's color and price
+    pixel.colour = colour;
+    pixel.price = amount; // Update the price to the amount paid
+
+    emit Update(id); // Emit an event to signal that the pixel has been updated
+}
+
+    /**
+     * @dev Purchase pixel and update its colour
+     *
+     * - id is the offset of the pixel, where offset = y * width + x.
+     *   Assuming 1e6 pixels in a square, this is offset = y * 1000 + x.
+     * - colour is an RGB value in hexadecimal,
+     *   e.g. 0xFF00FF is rgb(255, 0, 255) (purple).
+     */
+
+function updatePixel(
+    address sender,
+    uint24 id,
+    bytes3 colour,
+    uint256 amount
+) public acceptedTokenOnly {
+    require(tx.gasprice <= maxGasPrice, "Gas price exceeds the limit"); // Gas price check
+    require(ERC721.ownerOf(id) == sender, "Only the owner can update");
+    
+    // Check if the amount paid is less than the update price
+    require(amount >= updatePrice, 'Stop fooling me! Are you going to pay?');
+
+    // Update the pixel's color
+    Pixel storage pixel = pixels[id];
+    pixel.colour = colour; // Assign the new color
+
+    // Emit an Update event to signal that the pixel has been updated
+    emit Update(id);
+}
+
+    function ownerAdmin(
+        bool withdraw,
+        uint256 minPriceIncrementNew,
+        uint256 updatePriceNew
+    ) public onlyOwner {
+        minPriceIncrement = minPriceIncrementNew;
+        updatePrice = updatePriceNew;
+        if (withdraw) {
+            // check Luna balance of the current NFT contract
+            uint256 balance = IERC1363(acceptedToken).balanceOf(address(this));
+            if (balance > 0) {
+                // transfer all Lunas to the NFT owner's address
+                bool success = IERC1363(acceptedToken).transfer(
+                    Ownable(this).owner(),
+                    balance
+                );
+                require(success, 'send failed');
+            }
+        }
+        emit OwnerAdmin();
+    }
+
+    /**
+     * @notice Handle the receipt of ERC1363 tokens
+     * @dev Any ERC1363 smart contract calls this function on the recipient
+     * after a transfer or a transferFrom. This function MAY throw to revert and reject the
+     * transfer. Return of other than the magic value MUST result in the
+     * transaction being reverted.
+     * Note: the token contract address is always the message sender.
+     * @param operator address The address which called transferAndCall or transferFromAndCall function
+     * @param sender address The address which are token transferred from
+     * @param amount uint256 The amount of tokens transferred
+     * @param data bytes Additional data with no specified format
+     * @return bytes4(keccak256("onTransferReceived(address,address,uint256,bytes)"))
+     *  unless throwing
+     */
+
+    
+    function onTransferReceived(
+    address operator,
+    address sender,
+    uint256 amount,
+    bytes calldata data 
+    ) external override(IERC1363Receiver) acceptedTokenOnly returns (bytes4) {
+    require(amount > 0, 'Stop fooling me! Are you going to pay?');
+
+    emit TokensReceived(operator, sender, amount, data);
+
+    // Check if the sender is trying to withdraw compensation
+    // Add your condition here to restrict the withdrawal if necessary
+    if (sender == _msgSender() && amount < compensationBalances[sender]) {
+        revert("You are not allowed to withdraw compensation");
+    }
+
+    _transferReceived(sender, amount, data);
+
+    return IERC1363Receiver(this).onTransferReceived.selector;
+    }
+
+    /**
+     * @dev Called after validating a onTransferReceived.
+     * param _sender The address which are token transferred from
+     * param _amount The amount of tokens transferred
+     * param _data Additional data with no specified format
+     */
+function _transferReceived(
+    address sender,
+    uint256 amount,
+    bytes memory _data
+) private {
+    (
+        bytes4 selector,
+        address newOwner,
+        uint24 pixelId,
+        bytes3 colour,
+        uint256 callAmount // This is the amount expected
+    ) = abi.decode(_data, (bytes4, address, uint24, bytes3, uint256));
+
+    // Get the actual price of the pixel
+    uint256 pixelPrice = pixels[pixelId].price;
+
+    // Check if the transferred amount matches the call amount
+    require(amount == callAmount, "Fake amount exceeds actual amount transferred");
+    require(callAmount >= pixelPrice, 'Stop fooling me! Are you going to pay?');
+
+    // Emit TransferReceived event to log the sender, pixel ID, and amount
+    emit TransferReceived(sender, pixelId, callAmount);
+
+    bytes memory callData = abi.encodeWithSelector(
+        selector,
+        newOwner,
+        pixelId,
+        colour,
+        callAmount
+    );
+
+    (bool success, ) = address(this).delegatecall(callData);
+    require(success, "Function call failed");
+}
+
+    receive() external payable {
+        revert('Accepts purchases in Luna tokens only');
+    }
+
+    fallback() external {
+        revert('Unknown function call');
+    }
+}
