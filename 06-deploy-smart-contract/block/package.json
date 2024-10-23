@@ -1,0 +1,34 @@
+{
+  "name": "one-mln-pixels",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "lint": "npx prettier --list-different 'contracts/**/*.sol' 'test/**/*.js'",
+    "lint-fix": "npx prettier --write 'contracts/**/*.sol' 'test/**/*.js'",
+    "sc-analysis-static": "slither .",
+    "sc-analysis-dynamic": "myth analyze contracts/*.sol",
+    "console-rsktestnet": "hardhat console --network rsktestnet",
+    "deploy-rsktestnet": "hardhat run scripts/deploy.js --network rsktestnet"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.0.5",
+    "@nomiclabs/hardhat-waffle": "^2.0.3",
+    "@openzeppelin/contracts": "^4.5.0",
+    "@openzeppelin/test-helpers": "^0.5.15",
+    "chai": "^4.3.6",
+    "chai-as-promised": "^7.1.1",
+    "erc-payable-token": "^4.5.0",
+    "ethereum-waffle": "^3.4.4",
+    "ethers": "^5.6.2",
+    "hardhat": "^2.9.2",
+    "solidity-coverage": "^0.8.13",
+    "ts-node": "^10.7.0",
+    "typescript": "^4.6.3"
+  }
+}
