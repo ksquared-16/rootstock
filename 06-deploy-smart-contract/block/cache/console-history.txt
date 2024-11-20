@@ -1,2 +1,0 @@
-.exit
-(await require('hardhat').network.provider.send('eth_getBlockByNumber', ['latest', false])).minimumGasPrice
